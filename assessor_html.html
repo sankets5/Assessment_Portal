@@ -724,7 +724,7 @@
 
     // Try to sync with Google Sheets
     async function syncWithCloud() {
-        if (!SCRIPT_URL.includes('YOUR_APPS_SCRIPT')) return; // Not configured
+        if (!SCRIPT_URL.includes('https://script.google.com/macros/s/AKfycbyrwThIJYIxalGkNgWoc-zRI7o3Zn-G1wYqO2z5l_vlaAbRHbQtmcBbe42xHmOI9iQ/exec')) return; // Not configured
         if (syncPending) return;
         syncPending = true;
         document.getElementById('syncStatus').textContent = 'Syncing...';
@@ -747,7 +747,7 @@
 
     // Load from cloud if possible
     async function loadFromCloud() {
-        if (!SCRIPT_URL.includes('YOUR_APPS_SCRIPT')) {
+        if (!SCRIPT_URL.includes('https://script.google.com/macros/s/AKfycbyrwThIJYIxalGkNgWoc-zRI7o3Zn-G1wYqO2z5l_vlaAbRHbQtmcBbe42xHmOI9iQ/exec')) {
             document.getElementById('syncStatus').textContent = 'Offline Mode';
             return;
         }
@@ -770,7 +770,7 @@
     // Save with local + optional cloud
     async function saveData() {
         saveLocal();
-        if (isOnline || SCRIPT_URL.includes('YOUR_APPS_SCRIPT') === false) {
+        if (isOnline || SCRIPT_URL.includes('https://script.google.com/macros/s/AKfycbyrwThIJYIxalGkNgWoc-zRI7o3Zn-G1wYqO2z5l_vlaAbRHbQtmcBbe42xHmOI9iQ/exec') === false) {
             // Don't block UI
             setTimeout(syncWithCloud, 100);
         }
