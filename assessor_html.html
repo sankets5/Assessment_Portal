@@ -1421,34 +1421,36 @@ function deleteStaff(index, staffName) {
         XLSX.writeFile(wb, `Care_Tracker_${new Date().toISOString().split('T')[0]}.xlsx`);
     }
 
-// Login functionality
 document.getElementById('loginForm').onsubmit = async function(e) {
-    e.preventDefault();
-    const username = document.getElementById('loginUsername').value.trim();
-    const password = document.getElementById('loginPassword').value;
-    const errorDiv = document.getElementById('loginError');
-    
-    showLoading();
-    
-    try {
-        const response = await fetch(`${SCRIPT_URL}?action=authenticate&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`);
-        const result = await response.json();
-        
-        if (result.authenticated) {
-            isAuthenticated = true;
-            currentUser = username;
-            document.getElementById('loginModal').style.display = 'none';
-            init();
-        } else {
-            errorDiv.textContent = 'Invalid username or password';
-            errorDiv.style.display = 'block';
-            hideLoading();
-        }
-    } catch (error) {
-        errorDiv.textContent = 'Authentication failed. Please try again.';
-        errorDiv.style.display = 'block';
-        hideLoading();
+  e.preventDefault();
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errorDiv = document.getElementById('loginError');
+  
+  showLoading();
+
+  try {
+    const response = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'authenticate', username, password }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const result = await response.json();
+
+    if (result.authenticated) {
+      isAuthenticated = true;
+      currentUser = username;
+      document.getElementById('loginModal').style.display = 'none';
+      init();
+    } else {
+      errorDiv.textContent = 'Invalid username or password';
+      errorDiv.style.display = 'block';
     }
+  } catch (err) {
+    errorDiv.textContent = 'Connection failed. Check internet or URL.';
+    errorDiv.style.display = 'block';
+  }
+  hideLoading();
 };
 
 // Add sync status in header
@@ -1458,16 +1460,24 @@ document.querySelector('header').insertAdjacentHTML(
 );
 
 // === Initialization ===
-async function init() {
-  if (!isAuthenticated) {
-    hideLoading();
-    return;
-  }
+async function saveData() {
+  if (!isAuthenticated) return;
   showLoading();
-  loadLocal();
-  await loadFromCloud();
-  initStaff();
-  updateDashboard();
+  try {
+    await fetch(SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'save',
+        users: users,
+        assessments: assessments,
+        staff: staff
+      }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+    document.getElementById('syncStatus').textContent = 'Synced just now';
+  } catch (err) {
+    document.getElementById('syncStatus').textContent = 'Sync failed';
+  }
   hideLoading();
 }
 
