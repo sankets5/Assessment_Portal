@@ -1393,7 +1393,7 @@ document.getElementById('loginForm').onsubmit = async function(e) {
     const username = document.getElementById('loginUsername').value.trim();
     const password = document.getElementById('loginPassword').value;
     const errorDiv = document.getElementById('loginError');
-    	
+    
     showLoading();
     
     try {
@@ -1416,16 +1416,45 @@ document.getElementById('loginForm').onsubmit = async function(e) {
         hideLoading();
     }
 };
-    document.getElementById('searchUsers').oninput = loadUsers;
-    window.onclick = e => { if (e.target.className === 'modal') e.target.style.display = 'none'; };
 
-    // Add sync status in header
-    document.querySelector('header').insertAdjacentHTML('beforeend', '<div id="syncStatus" style="font-size:12px; color:#16a085; margin-top:8px;"></div>');
-    async function init(){ showLoading(); loadLocal(); await loadFromCloud(); initStaff(); updateDashboard(); hideLoading(); }
-    init();
-   document.getElementById('searchUsers').oninput=loadUsers;
-   window.onclick=e=>{ if(e.target.className==='modal') e.target.style.display='none'; };
+// Add sync status in header
+document.querySelector('header').insertAdjacentHTML(
+  'beforeend',
+  '<div id="syncStatus" style="font-size:12px; color:#16a085; margin-top:8px;"></div>'
+);
 
-    // Start
+// === Initialization ===
+async function init() {
+  if (!isAuthenticated) {
     hideLoading();
+    return;
+  }
+  showLoading();
+  loadLocal();
+  await loadFromCloud();
+  initStaff();
+  updateDashboard();
+  hideLoading();
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+  // Hide main container initially
+  document.querySelector('.container').style.display = 'none';
+  
+  // Show login modal
+  document.getElementById('loginModal').style.display = 'flex';
+  
+  // Hide loading overlay
+  hideLoading();
+  
+  // Setup event bindings
+  document.getElementById('searchUsers').oninput = loadUsers;
+  
+  window.onclick = e => {
+    if (e.target.className === 'modal' && e.target.id !== 'loginModal') {
+      e.target.style.display = 'none';
+    }
+  };
+});
 </script>
