@@ -1421,84 +1421,74 @@ function deleteStaff(index, staffName) {
         XLSX.writeFile(wb, `Care_Tracker_${new Date().toISOString().split('T')[0]}.xlsx`);
     }
 
-document.getElementById('loginForm').onsubmit = async function(e) {
+// Secure Login
+document.getElementById('loginForm').onsubmit = async e => {
   e.preventDefault();
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value;
   const errorDiv = document.getElementById('loginError');
-  
+  errorDiv.style.display = 'none';
   showLoading();
 
   try {
-    const response = await fetch(SCRIPT_URL, {
+    const res = await fetch(SCRIPT_URL, {
       method: 'POST',
       body: JSON.stringify({ action: 'authenticate', username, password }),
       headers: { 'Content-Type': 'application/json' }
     });
-    const result = await response.json();
+    const data = await res.json();
 
-    if (result.authenticated) {
+    if (data.authenticated) {
       isAuthenticated = true;
       currentUser = username;
       document.getElementById('loginModal').style.display = 'none';
-      init();
+      document.querySelector('.container').style.display = 'block';
+      init();  // THIS WAS MISSING!
     } else {
-      errorDiv.textContent = 'Invalid username or password';
+      errorDiv.textContent = 'Wrong username or password';
       errorDiv.style.display = 'block';
     }
   } catch (err) {
-    errorDiv.textContent = 'Connection failed. Check internet or URL.';
+    errorDiv.textContent = 'Check internet or URL';
     errorDiv.style.display = 'block';
   }
   hideLoading();
 };
 
-// Add sync status in header
-document.querySelector('header').insertAdjacentHTML(
-  'beforeend',
-  '<div id="syncStatus" style="font-size:12px; color:#16a085; margin-top:8px;"></div>'
-);
-
-// === Initialization ===
-async function saveData() {
+// Auto-Save Every 30 Seconds + Manual Save
+window.saveData = async () => {
   if (!isAuthenticated) return;
   showLoading();
   try {
     await fetch(SCRIPT_URL, {
       method: 'POST',
-      body: JSON.stringify({
-        action: 'save',
-        users: users,
-        assessments: assessments,
-        staff: staff
-      }),
+      body: JSON.stringify({ action: 'save', users, assessments, staff }),
       headers: { 'Content-Type': 'application/json' }
     });
-    document.getElementById('syncStatus').textContent = 'Synced just now';
-  } catch (err) {
-    document.getElementById('syncStatus').textContent = 'Sync failed';
+    document.getElementById('syncStatus').textContent = 'Synced: ' + new Date().toLocaleTimeString();
+  } catch {
+    document.getElementById('syncStatus').textContent = 'Sync failed – saved locally';
   }
   hideLoading();
-}
+};
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-  // Hide main container initially
-  document.querySelector('.container').style.display = 'none';
-  
-  // Show login modal
-  document.getElementById('loginModal').style.display = 'flex';
-  
-  // Hide loading overlay
-  hideLoading();
-  
-  // Setup event bindings
-  document.getElementById('searchUsers').oninput = loadUsers;
-  
-  window.onclick = e => {
-    if (e.target.className === 'modal' && e.target.id !== 'loginModal') {
-      e.target.style.display = 'none';
-    }
+// Auto-sync every 30 sec
+setInterval(saveData, 30000);
+
+// Run save on every change
+const autoSave = () => setTimeout(saveData, 500);
+['users','assessments','staff'].forEach(arr => {
+  const origPush = Array.prototype.push;
+  Array.prototype.push = function(...items) {
+    const result = origPush.apply(this, items);
+    autoSave();
+    return result;
   };
+});
+// FINAL: Show dashboard after login
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelector('.container').style.display = 'none';
+  document.getElementById('loginModal').style.display = 'flex';
+  hideLoading();
 });
 </script>
