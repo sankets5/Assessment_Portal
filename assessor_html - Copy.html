@@ -721,19 +721,24 @@
         }
     }
 
-    // Save to localStorage
-    function saveLocal() {
-        localStorage.setItem('careTrackerData', JSON.stringify({ users, assessments, staff }));
-    }
+// === SAVE LOCALLY ===
+function saveLocal() {
+    localStorage.setItem('users', JSON.stringify(users));
+    localStorage.setItem('assessments', JSON.stringify(assessments));
+    localStorage.setItem('staff', JSON.stringify(staff));
+}
 
-// === SYNC WITH GOOGLE SHEETS ===
+// === LOAD LOCALLY ===
+function loadLocal() {
+    users = JSON.parse(localStorage.getItem('users') || '[]');
+    assessments = JSON.parse(localStorage.getItem('assessments') || '[]');
+    staff = JSON.parse(localStorage.getItem('staff') || '[]');
+}
+
+// === SYNC TO GOOGLE SHEETS ===
 async function syncWithCloud() {
     try {
         document.getElementById('syncStatus').textContent = 'Syncing...';
-
-        const users = JSON.parse(localStorage.getItem('users') || '[]');
-        const assessments = JSON.parse(localStorage.getItem('assessments') || '[]');
-        const staff = JSON.parse(localStorage.getItem('staff') || '[]');
 
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
@@ -761,37 +766,33 @@ async function syncWithCloud() {
     }
 }
 
-// === LOAD DATA FROM GOOGLE SHEETS ===
+// === LOAD FROM GOOGLE SHEETS ===
 async function loadFromCloud() {
     try {
-        const res = await fetch(`${SCRIPT_URL}?action=load&t=${Date.now()}`);
+        const res = await fetch(`${SCRIPT_URL}?action=load`);
         const data = await res.json();
 
         users = data.users || [];
         assessments = data.assessments || [];
         staff = data.staff || [];
 
-        // Save what we pulled from the cloud to localStorage
-        localStorage.setItem('users', JSON.stringify(users));
-        localStorage.setItem('assessments', JSON.stringify(assessments));
-        localStorage.setItem('staff', JSON.stringify(staff));
-
-        document.getElementById('syncStatus').textContent = 'Cloud data loaded ✅';
+        saveLocal();
+        document.getElementById('syncStatus').textContent = 'Loaded from Cloud ✅';
         isOnline = true;
     } catch (e) {
         console.error('Load error:', e);
-        document.getElementById('syncStatus').textContent = 'Offline (using local data)';
+        document.getElementById('syncStatus').textContent = 'Offline (local data)';
+        loadLocal();
         isOnline = false;
     }
 }
 
-// === SAVE DATA LOCALLY, THEN SYNC TO CLOUD ===
+// === SAVE DATA THEN SYNC ===
 async function saveData() {
-    saveLocal();  // still saves to browser storage
-    if (isOnline) {
-        setTimeout(syncWithCloud, 100);
-    }
+    saveLocal();
+    setTimeout(syncWithCloud, 200);
 }
+
 
     // Initialize app
     async function init() {
