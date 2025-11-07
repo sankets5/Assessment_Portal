@@ -696,9 +696,9 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script>
- // ==== CONFIG ====
-    const SPREADSHEET_ID = '1gLkdYbgQzDtF7SOodWFARH8Sa0LtutQIRimfXu4WvcI';  // ← Update later
-    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyrwThIJYIxalGkNgWoc-zRI7o3Zn-G1wYqO2z5l_vlaAbRHbQtmcBbe42xHmOI9iQ/exec';  // ← Update later
+    // ==== CONFIG ====
+    const SPREADSHEET_ID = '1gLkdYbgQzDtF7SOodWFARH8Sa0LtutQIRimfXu4WvcI';
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyrwThIJYIxalGkNgWoc-zRI7o3Zn-G1wYqO2z5l_vlaAbRHbQtmcBbe42xHmOI9iQ/exec';
 
     let users = [], assessments = [], staff = ['John Smith', 'Sarah Johnson'];
     let isOnline = false;
@@ -706,7 +706,11 @@
     let currentUser = null;
     let syncPending = false;
 
-    // Load from localStorage first
+    // Show/hide loading
+    function showLoading() { document.getElementById('loadingOverlay').style.display = 'flex'; }
+    function hideLoading() { document.getElementById('loadingOverlay').style.display = 'none'; }
+
+    // Load from localStorage
     function loadLocal() {
         const saved = localStorage.getItem('careTrackerData');
         if (saved) {
@@ -722,9 +726,9 @@
         localStorage.setItem('careTrackerData', JSON.stringify({ users, assessments, staff }));
     }
 
-    // Try to sync with Google Sheets
+    // Sync with Google Sheets
     async function syncWithCloud() {
-        if (!SCRIPT_URL.includes('https://script.google.com/macros/s/AKfycbyrwThIJYIxalGkNgWoc-zRI7o3Zn-G1wYqO2z5l_vlaAbRHbQtmcBbe42xHmOI9iQ/exec')) return; // Not configured
+        if (!SCRIPT_URL.includes('YOUR_APPS_SCRIPT')) return;
         if (syncPending) return;
         syncPending = true;
         document.getElementById('syncStatus').textContent = 'Syncing...';
@@ -745,9 +749,9 @@
         }
     }
 
-    // Load from cloud if possible
+    // Load from cloud
     async function loadFromCloud() {
-        if (!SCRIPT_URL.includes('https://script.google.com/macros/s/AKfycbyrwThIJYIxalGkNgWoc-zRI7o3Zn-G1wYqO2z5l_vlaAbRHbQtmcBbe42xHmOI9iQ/exec')) {
+        if (!SCRIPT_URL.includes('YOUR_APPS_SCRIPT')) {
             document.getElementById('syncStatus').textContent = 'Offline Mode';
             return;
         }
@@ -758,7 +762,7 @@
             users = data.users || [];
             assessments = data.assessments || [];
             staff = data.staff || staff;
-            saveLocal(); // Backup to local
+            saveLocal();
             document.getElementById('syncStatus').textContent = 'Synced';
             isOnline = true;
         } catch (e) {
@@ -767,32 +771,22 @@
         }
     }
 
-    // Save with local + optional cloud
+    // Save data
     async function saveData() {
         saveLocal();
-        if (isOnline || SCRIPT_URL.includes('https://script.google.com/macros/s/AKfycbyrwThIJYIxalGkNgWoc-zRI7o3Zn-G1wYqO2z5l_vlaAbRHbQtmcBbe42xHmOI9iQ/exec') === false) {
-            // Don't block UI
+        if (isOnline || SCRIPT_URL.includes('YOUR_APPS_SCRIPT') === false) {
             setTimeout(syncWithCloud, 100);
         }
     }
 
-    // Show loading
-    function showLoading() { document.getElementById('loadingOverlay').style.display = 'flex'; }
-    function hideLoading() { document.getElementById('loadingOverlay').style.display = 'none'; }
-
-    // Initialize
+    // Initialize app
     async function init() {
-    if (!isAuthenticated) {
+        showLoading();
+        loadLocal();
+        await loadFromCloud();
+        initStaff();
+        updateDashboard();
         hideLoading();
-        return;
-    }
-    showLoading();
-    loadLocal();
-    await loadFromCloud();
-    initStaff();
-    updateDashboard();
-    hideLoading();
-}
     }
 
     function showTab(id) {
@@ -807,7 +801,7 @@
     }
 
     function initStaff() {
-        const selects = ['assignedStaff', 'staffFilter', 'updateCompletedBy', 'staffFilterAssessments'];
+        const selects = ['assignedStaff', 'staffFilter', 'updateCompletedBy', 'staffFilterAssessments', 'midYearCompletedBy'];
         selects.forEach(id => {
             const sel = document.getElementById(id);
             if (!sel) return;
@@ -912,7 +906,6 @@
         });
     }
 
-  // === DELETE USER FUNCTION ===
     function deleteUser(userId) {
         if (confirm('Delete this service user and all their assessments? This cannot be undone.')) {
             users = users.filter(u => u.id !== userId);
@@ -925,82 +918,77 @@
         }
     }
 
- function openMidYearAssessment(userId) {
-    const user = users.find(u => u.id === userId);
-    if (!user) return;
-    
-    document.getElementById('midYearModalTitle').textContent = `Add Mid-Year Assessment - ${user.name}`;
-    document.getElementById('midYearUserId').value = userId;
-    
-    // Populate staff dropdown
-    const sel = document.getElementById('midYearCompletedBy');
-    sel.innerHTML = '<option value="">Select staff...</option>';
-    staff.forEach(s => sel.add(new Option(s, s)));
-    
-    // Clear form
-    document.getElementById('midYearForm').reset();
-    document.getElementById('midYearUserId').value = userId;
-    
-    document.getElementById('midYearModal').style.display = 'block';
-}
-
-function closeMidYearModal() {
-    document.getElementById('midYearModal').style.display = 'none';
-}
-
-document.getElementById('midYearForm').onsubmit = async e => {
-    e.preventDefault();
-    const userId = parseFloat(document.getElementById('midYearUserId').value);
-    const user = users.find(u => u.id === userId);
-    
-    const contactDate = document.getElementById('midYearContactDate').value || null;
-    const assessmentDate = document.getElementById('midYearAssessmentDate').value;
-    const writeupDate = document.getElementById('midYearWriteupDate').value || null;
-    const completedBy = document.getElementById('midYearCompletedBy').value;
-    const reason = document.getElementById('midYearReason').value;
-    const notes = document.getElementById('midYearNotes').value.trim();
-    
-    // Determine status
-    let status = 'pending';
-    if (writeupDate && completedBy) status = 'completed';
-    else if (assessmentDate && completedBy) status = 'partial';
-    
-    // Calculate days
-    let daysToComplete = null;
-    let daysToWriteup = null;
-    
-    if (assessmentDate) {
-        daysToComplete = Math.ceil((new Date(assessmentDate) - new Date(user.packageStartDate)) / 86400000);
+    function openMidYearAssessment(userId) {
+        const user = users.find(u => u.id === userId);
+        if (!user) return;
+        
+        document.getElementById('midYearModalTitle').textContent = `Add Mid-Year Assessment - ${user.name}`;
+        document.getElementById('midYearUserId').value = userId;
+        
+        const sel = document.getElementById('midYearCompletedBy');
+        sel.innerHTML = '<option value="">Select staff...</option>';
+        staff.forEach(s => sel.add(new Option(s, s)));
+        
+        document.getElementById('midYearForm').reset();
+        document.getElementById('midYearUserId').value = userId;
+        
+        document.getElementById('midYearModal').style.display = 'block';
     }
-    if (writeupDate && assessmentDate) {
-        daysToWriteup = Math.ceil((new Date(writeupDate) - new Date(assessmentDate)) / 86400000);
+
+    function closeMidYearModal() {
+        document.getElementById('midYearModal').style.display = 'none';
     }
-    
-    // Create mid-year assessment
-    const midYearAssessment = {
-        id: Date.now() + Math.random(),
-        userId: userId,
-        type: 'Mid-Year Assessment',
-        dueDate: assessmentDate, // Use assessment date as due date since it's ad-hoc
-        assessmentContactDate: contactDate,
-        assessmentDate: assessmentDate,
-        writeupCompletionDate: writeupDate,
-        completedBy: completedBy,
-        daysToComplete: daysToComplete,
-        daysToWriteup: daysToWriteup,
-        status: status,
-        reason: reason,
-        notes: notes
+
+    document.getElementById('midYearForm').onsubmit = async e => {
+        e.preventDefault();
+        const userId = parseFloat(document.getElementById('midYearUserId').value);
+        const user = users.find(u => u.id === userId);
+        
+        const contactDate = document.getElementById('midYearContactDate').value || null;
+        const assessmentDate = document.getElementById('midYearAssessmentDate').value;
+        const writeupDate = document.getElementById('midYearWriteupDate').value || null;
+        const completedBy = document.getElementById('midYearCompletedBy').value;
+        const reason = document.getElementById('midYearReason').value;
+        const notes = document.getElementById('midYearNotes').value.trim();
+        
+        let status = 'pending';
+        if (writeupDate && completedBy) status = 'completed';
+        else if (assessmentDate && completedBy) status = 'partial';
+        
+        let daysToComplete = null;
+        let daysToWriteup = null;
+        
+        if (assessmentDate) {
+            daysToComplete = Math.ceil((new Date(assessmentDate) - new Date(user.packageStartDate)) / 86400000);
+        }
+        if (writeupDate && assessmentDate) {
+            daysToWriteup = Math.ceil((new Date(writeupDate) - new Date(assessmentDate)) / 86400000);
+        }
+        
+        const midYearAssessment = {
+            id: Date.now() + Math.random(),
+            userId: userId,
+            type: 'Mid-Year Assessment',
+            dueDate: assessmentDate,
+            assessmentContactDate: contactDate,
+            assessmentDate: assessmentDate,
+            writeupCompletionDate: writeupDate,
+            completedBy: completedBy,
+            daysToComplete: daysToComplete,
+            daysToWriteup: daysToWriteup,
+            status: status,
+            reason: reason,
+            notes: notes
+        };
+        
+        assessments.push(midYearAssessment);
+        
+        await saveData();
+        closeMidYearModal();
+        alert('Mid-Year Assessment added successfully!');
+        loadAllAssessments();
+        updateDashboard();
     };
-    
-    assessments.push(midYearAssessment);
-    
-    await saveData();
-    closeMidYearModal();
-    alert('Mid-Year Assessment added successfully!');
-    loadAllAssessments();
-    updateDashboard();
-};
 
     function loadUsers() {
         const tbody = document.querySelector('#usersTable tbody');
@@ -1094,9 +1082,6 @@ document.getElementById('midYearForm').onsubmit = async e => {
         const a = assessments.find(x => x.id === id);
         const u = users.find(x => x.id === a.userId);
 
-        const oldAssess = a.assessmentDate;
-        const oldWrite = a.writeupCompletionDate;
-
         a.assessmentContactDate = document.getElementById('updateContactDate').value || null;
         a.assessmentDate = document.getElementById('updateAssessmentDate').value || null;
         a.writeupCompletionDate = document.getElementById('updateWriteupDate').value || null;
@@ -1106,17 +1091,17 @@ document.getElementById('midYearForm').onsubmit = async e => {
         else if (a.assessmentDate && a.completedBy) a.status = 'partial';
         else a.status = 'pending';
 
-       if (a.assessmentDate) {
-        a.daysToComplete = Math.ceil((new Date(a.assessmentDate) - new Date(u.packageStartDate)) / 86400000);
+        if (a.assessmentDate) {
+            a.daysToComplete = Math.ceil((new Date(a.assessmentDate) - new Date(u.packageStartDate)) / 86400000);
         } else {
-        a.daysToComplete = null;
-          }
-    
-       if (a.writeupCompletionDate && a.assessmentDate) {
-          a.daysToWriteup = Math.ceil((new Date(a.writeupCompletionDate) - new Date(a.assessmentDate)) / 86400000);
-          } else {
-           a.daysToWriteup = null;
-            }
+            a.daysToComplete = null;
+        }
+        
+        if (a.writeupCompletionDate && a.assessmentDate) {
+            a.daysToWriteup = Math.ceil((new Date(a.writeupCompletionDate) - new Date(a.assessmentDate)) / 86400000);
+        } else {
+            a.daysToWriteup = null;
+        }
 
         if (a.type === '12 Month Reassessment' && a.status === 'completed' && a.writeupCompletionDate) {
             const base = new Date(a.assessmentDate);
@@ -1172,135 +1157,113 @@ document.getElementById('midYearForm').onsubmit = async e => {
             alert('Staff already exists');
         }
     }
-function editStaff(index, oldName) {
-    const newName = prompt('Edit staff name:', oldName);
-    if (!newName || newName.trim() === '') {
-        alert('Name cannot be empty');
-        return;
-    }
-    
-    const trimmedName = newName.trim();
-    
-    // Check if name already exists (excluding current name)
-    if (staff.some((s, i) => s === trimmedName && i !== index)) {
-        alert('Staff name already exists');
-        return;
-    }
-    
-    // Update staff name
-    const oldStaffName = staff[index];
-    staff[index] = trimmedName;
-    
-    // Update all users assigned to this staff
-    users.forEach(u => {
-        if (u.assignedStaff === oldStaffName) {
-            u.assignedStaff = trimmedName;
-        }
-    });
-    
-    // Update all assessments completed by this staff
-    assessments.forEach(a => {
-        if (a.completedBy === oldStaffName) {
-            a.completedBy = trimmedName;
-        }
-    });
-    
-    saveData().then(() => {
-        initStaff();
-        loadStaff();
-        loadUsers();
-        loadAllAssessments();
-        updateDashboard();
-        alert('Staff name updated!');
-    });
-}
 
-function deleteStaff(index, staffName) {
-    // Check if staff is assigned to any users
-    const assignedUsers = users.filter(u => u.assignedStaff === staffName);
-    const completedAssessments = assessments.filter(a => a.completedBy === staffName);
-    
-    if (assignedUsers.length > 0) {
-        alert(`Cannot delete ${staffName}. They are assigned to ${assignedUsers.length} user(s). Please reassign these users first.`);
-        return;
-    }
-    
-    if (completedAssessments.length > 0) {
-        const confirmMsg = `${staffName} has completed ${completedAssessments.length} assessment(s). These will be marked as completed by "Former Staff Member". Continue?`;
-        if (!confirm(confirmMsg)) return;
+    function editStaff(index, oldName) {
+        const newName = prompt('Edit staff name:', oldName);
+        if (!newName || newName.trim() === '') {
+            alert('Name cannot be empty');
+            return;
+        }
         
-        // Update assessments
-        assessments.forEach(a => {
-            if (a.completedBy === staffName) {
-                a.completedBy = 'Former Staff Member';
+        const trimmedName = newName.trim();
+        
+        if (staff.some((s, i) => s === trimmedName && i !== index)) {
+            alert('Staff name already exists');
+            return;
+        }
+        
+        const oldStaffName = staff[index];
+        staff[index] = trimmedName;
+        
+        users.forEach(u => {
+            if (u.assignedStaff === oldStaffName) {
+                u.assignedStaff = trimmedName;
             }
         });
-    } else {
-        if (!confirm(`Delete ${staffName}?`)) return;
-    }
-    
-    // Remove staff
-    staff.splice(index, 1);
-    
-    saveData().then(() => {
-        initStaff();
-        loadStaff();
-        loadAllAssessments();
-        alert('Staff deleted!');
-    });
-}
-    async function deleteUser(userId) {
-    const user = users.find(u => u.id === userId);
-    if (!user) return;
-    
-    if (confirm(`Delete ${user.name} and all their assessments? This cannot be undone.`)) {
-        // Remove user
-        users = users.filter(u => u.id !== userId);
         
-        // Remove all assessments for this user
-        assessments = assessments.filter(a => a.userId !== userId);
+        assessments.forEach(a => {
+            if (a.completedBy === oldStaffName) {
+                a.completedBy = trimmedName;
+            }
+        });
         
-        await saveData();
-        loadUsers();
-        updateDashboard();
-        alert('User and all assessments deleted successfully!');
+        saveData().then(() => {
+            initStaff();
+            loadStaff();
+            loadUsers();
+            loadAllAssessments();
+            updateDashboard();
+            alert('Staff name updated!');
+        });
     }
-  }
+
+    function deleteStaff(index, staffName) {
+        const assignedUsers = users.filter(u => u.assignedStaff === staffName);
+        const completedAssessments = assessments.filter(a => a.completedBy === staffName);
+        
+        if (assignedUsers.length > 0) {
+            alert(`Cannot delete ${staffName}. They are assigned to ${assignedUsers.length} user(s). Please reassign these users first.`);
+            return;
+        }
+        
+        if (completedAssessments.length > 0) {
+            const confirmMsg = `${staffName} has completed ${completedAssessments.length} assessment(s). These will be marked as completed by "Former Staff Member". Continue?`;
+            if (!confirm(confirmMsg)) return;
+            
+            assessments.forEach(a => {
+                if (a.completedBy === staffName) {
+                    a.completedBy = 'Former Staff Member';
+                }
+            });
+        } else {
+            if (!confirm(`Delete ${staffName}?`)) return;
+        }
+        
+        staff.splice(index, 1);
+        
+        saveData().then(() => {
+            initStaff();
+            loadStaff();
+            loadAllAssessments();
+            alert('Staff deleted!');
+        });
+    }
 
     function loadStaff() {
-    const container = document.getElementById('staffList');
-    container.innerHTML = '<h2>Staff List</h2>';
-    staff.forEach((s, index) => {
-        const div = document.createElement('div');
-        div.style = 'padding:10px; background:#f8fffd; margin:5px 0; border-left:4px solid #16a085; display: flex; justify-content: space-between; align-items: center;';
-        
-        const nameSpan = document.createElement('span');
-        nameSpan.textContent = s;
-        nameSpan.style.flex = '1';
-        
-        const btnContainer = document.createElement('div');
-        btnContainer.style.display = 'flex';
-        btnContainer.style.gap = '5px';
-        
-        const editBtn = document.createElement('button');
-        editBtn.textContent = 'Edit';
-        editBtn.className = 'action-btn';
-        editBtn.style.background = 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)';
-        editBtn.onclick = () => editStaff(index, s);
-        
-        const deleteBtn = document.createElement('button');
-        deleteBtn.textContent = 'Delete';
-        deleteBtn.className = 'action-btn btn-danger';
-        deleteBtn.onclick = () => deleteStaff(index, s);
-        
-        btnContainer.appendChild(editBtn);
-        btnContainer.appendChild(deleteBtn);
-        div.appendChild(nameSpan);
-        div.appendChild(btnContainer);
-        container.appendChild(div);
-    });
-}
-    // === IMPORTS ===
+        const container = document.getElementById('staffList');
+        container.innerHTML = '<h2>Staff List</h2>';
+        staff.forEach((s, index) => {
+            const div = document.createElement('div');
+            div.style = 'padding:10px; background:#f8fffd; margin:5px 0; border-left:4px solid #16a085; display: flex; justify-content: space-between; align-items: center;';
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = s;
+            nameSpan.style.flex = '1';
+            
+            const btnContainer = document.createElement('div');
+            btnContainer.style.display = 'flex';
+            btnContainer.style.gap = '5px';
+            
+            const editBtn = document.createElement('button');
+            editBtn.textContent = 'Edit';
+            editBtn.className = 'action-btn';
+            editBtn.style.background = 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)';
+            editBtn.onclick = () => editStaff(index, s);
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.className = 'action-btn btn-danger';
+            deleteBtn.onclick = () => deleteStaff(index, s);
+            
+            btnContainer.appendChild(editBtn);
+            btnContainer.appendChild(deleteBtn);
+            div.appendChild(nameSpan);
+            div.appendChild(btnContainer);
+            container.appendChild(div);
+        });
+    }
+
+    // IMPORTS
     document.getElementById('importUsers').onchange = e => importFile(e, 'users');
     document.getElementById('importInitial').onchange = e => importFile(e, 'initial');
     document.getElementById('importReassess').onchange = e => importFile(e, 'reassess');
@@ -1421,74 +1384,50 @@ function deleteStaff(index, staffName) {
         XLSX.writeFile(wb, `Care_Tracker_${new Date().toISOString().split('T')[0]}.xlsx`);
     }
 
-// Secure Login
-document.getElementById('loginForm').onsubmit = async e => {
-  e.preventDefault();
-  const username = document.getElementById('loginUsername').value.trim();
-  const password = document.getElementById('loginPassword').value;
-  const errorDiv = document.getElementById('loginError');
-  errorDiv.style.display = 'none';
-  showLoading();
-
-  try {
-    const res = await fetch(SCRIPT_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'authenticate', username, password }),
-      headers: { 'Content-Type': 'application/json' }
+    // ===== PAGE INITIALIZATION =====
+    document.addEventListener('DOMContentLoaded', function() {
+        // Setup login form
+        document.getElementById('loginForm').onsubmit = async function(e) {
+            e.preventDefault();
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const errorDiv = document.getElementById('loginError');
+            
+            showLoading();
+            errorDiv.style.display = 'none';
+            
+            try {
+                const response = await fetch(`${SCRIPT_URL}?action=authenticate&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`);
+                const result = await response.json();
+                
+                if (result.authenticated) {
+                    isAuthenticated = true;
+                    currentUser = username;
+                    document.getElementById('loginModal').style.display = 'none';
+                    document.querySelector('.container').style.display = 'block';
+                    await init();
+                } else {
+                    errorDiv.textContent = 'Invalid username or password';
+                    errorDiv.style.display = 'block';
+                    hideLoading();
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Authentication failed. Please check your connection.';
+                errorDiv.style.display = 'block';
+                hideLoading();
+            }
+        };
+        
+        // Setup search handler
+        document.getElementById('searchUsers').oninput = loadUsers;
+        
+        // Setup modal close handler
+        window.onclick = e => {
+            if (e.target.className === 'modal' && e.target.id !== 'loginModal') {
+                e.target.style.display = 'none';
+            }
+        };
     });
-    const data = await res.json();
-
-    if (data.authenticated) {
-      isAuthenticated = true;
-      currentUser = username;
-      document.getElementById('loginModal').style.display = 'none';
-      document.querySelector('.container').style.display = 'block';
-      init();  // THIS WAS MISSING!
-    } else {
-      errorDiv.textContent = 'Wrong username or password';
-      errorDiv.style.display = 'block';
-    }
-  } catch (err) {
-    errorDiv.textContent = 'Check internet or URL';
-    errorDiv.style.display = 'block';
-  }
-  hideLoading();
-};
-
-// Auto-Save Every 30 Seconds + Manual Save
-window.saveData = async () => {
-  if (!isAuthenticated) return;
-  showLoading();
-  try {
-    await fetch(SCRIPT_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'save', users, assessments, staff }),
-      headers: { 'Content-Type': 'application/json' }
-    });
-    document.getElementById('syncStatus').textContent = 'Synced: ' + new Date().toLocaleTimeString();
-  } catch {
-    document.getElementById('syncStatus').textContent = 'Sync failed – saved locally';
-  }
-  hideLoading();
-};
-
-// Auto-sync every 30 sec
-setInterval(saveData, 30000);
-
-// Run save on every change
-const autoSave = () => setTimeout(saveData, 500);
-['users','assessments','staff'].forEach(arr => {
-  const origPush = Array.prototype.push;
-  Array.prototype.push = function(...items) {
-    const result = origPush.apply(this, items);
-    autoSave();
-    return result;
-  };
-});
-// FINAL: Show dashboard after login
-document.addEventListener('DOMContentLoaded', () => {
-  document.querySelector('.container').style.display = 'none';
-  document.getElementById('loginModal').style.display = 'flex';
-  hideLoading();
-});
-</script>
+    </script>
+</body>
+</html>
